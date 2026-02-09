@@ -18,7 +18,7 @@
 依赖要求: Rust 工具链, `gcc` (用于编译依赖)。
 
 ```bash
-git clone https://github.com/yourusername/clash-cli.git
+git clone https://github.com/dcdyouget/clash-cli.git
 cd clash-cli
 cargo build --release
 sudo cp target/release/clash-cli /usr/local/bin/
