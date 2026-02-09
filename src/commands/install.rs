@@ -1,0 +1,173 @@
+use anyhow::{Result, anyhow};
+use std::process::Command;
+use std::path::{Path};
+use crate::utils::{system, download};
+use tempfile::TempDir;
+use colored::*;
+
+const MIHOMO_VERSION: &str = "v1.17.0";
+const DOWNLOAD_BASE_URL: &str = "https://github.com/MetaCubeX/mihomo/releases/download";
+
+/// 安装命令主入口
+/// 
+/// 负责下载、解压、移动二进制文件，并配置 systemd 服务
+pub async fn run(version: Option<String>, file: Option<String>) -> Result<()> {
+    let version = version.as_deref().unwrap_or(MIHOMO_VERSION);
+    // 检测系统架构和操作系统
+    let arch = system::get_arch()?;
+    let os = system::get_os()?;
+    
+    if os != "linux" {
+        println!("{}", "警告: 此安装程序仅针对 Linux systemd 进行了优化。".yellow());
+    }
+
+    let temp_dir = TempDir::new()?;
+    let archive_path = if let Some(local_path) = file {
+        let path = Path::new(&local_path);
+        if !path.exists() {
+            return Err(anyhow!("指定的本地文件不存在: {}", local_path));
+        }
+        println!("使用本地文件安装: {}", local_path);
+        // 如果是本地文件，我们直接使用它，或者复制到临时目录
+        // 为了统一逻辑，这里我们可以直接返回 path 的 PathBuf，或者复制
+        // 由于 extract_gzip 接受 Path，我们直接用
+        path.to_path_buf()
+    } else {
+        // 构造下载链接
+        // Example URL: https://github.com/MetaCubeX/mihomo/releases/download/v1.17.0/mihomo-linux-amd64-v1.17.0.gz
+        let filename = format!("mihomo-{}-{}-{}.gz", os, arch, version);
+        let url = format!("{}/{}/{}", DOWNLOAD_BASE_URL, version, filename);
+
+        println!("正在下载 Clash (Mihomo Core {}) 适用于 {}/{}...", version, os, arch);
+        
+        // 创建临时目录进行下载
+        let dl_path = temp_dir.path().join(&filename);
+        
+        download::download_file(&url, &dl_path).await?;
+        dl_path
+    };
+    
+    println!("正在安装...");
+    
+    // 解压文件
+    let binary_path = temp_dir.path().join("clash");
+    download::extract_gzip(&archive_path, &binary_path)?;
+
+    // 移动到系统目录 /usr/local/bin/clash
+    install_binary(&binary_path, "/usr/local/bin/clash")?;
+    
+    // 创建配置目录 /etc/clash
+    create_config_dir("/etc/clash")?;
+
+    // 配置 Systemd 服务
+    if os == "linux" {
+        setup_systemd()?;
+    } else {
+        println!("非 Linux 系统，跳过 systemd 配置。您可以手动运行: clash -d /etc/clash");
+    }
+
+    println!("{}", "Clash 安装成功!".green().bold());
+    Ok(())
+}
+
+/// 安装二进制文件到目标路径
+/// 如果权限不足会尝试使用 sudo
+fn install_binary(source: &Path, target: &str) -> Result<()> {
+    // 尝试直接移动 (如果以 root 运行)
+    if std::fs::rename(source, target).is_ok() {
+        return Ok(());
+    }
+    
+    // 降级使用 sudo
+    println!("请求 sudo 权限以移动二进制文件...");
+    let status = Command::new("sudo")
+        .arg("mv")
+        .arg(source)
+        .arg(target)
+        .status()?;
+        
+    if !status.success() {
+        return Err(anyhow!("移动二进制文件到 {} 失败", target));
+    }
+    // 赋予执行权限
+    Command::new("sudo").arg("chmod").arg("+x").arg(target).status()?;
+    
+    Ok(())
+}
+
+/// 创建配置目录
+fn create_config_dir(path: &str) -> Result<()> {
+    if Path::new(path).exists() {
+        return Ok(());
+    }
+    println!("创建配置目录: {}", path);
+     let status = Command::new("sudo")
+        .arg("mkdir")
+        .arg("-p")
+        .arg(path)
+        .status()?;
+    if !status.success() {
+        return Err(anyhow!("创建配置目录 {} 失败", path));
+    }
+    // 设置目录权限 755
+    Command::new("sudo").arg("chmod").arg("755").arg(path).status()?;
+    
+    Ok(())
+}
+
+/// 设置 systemd 服务
+fn setup_systemd() -> Result<()> {
+    // 生成 service 文件内容
+    let service_content = r#"[Unit]
+Description=Clash Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/clash -d /etc/clash
+Restart=always
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+"#;
+
+    let temp_service_path = "/tmp/clash.service";
+    std::fs::write(temp_service_path, service_content)?;
+    
+    println!("正在安装 systemd 服务...");
+    let status = Command::new("sudo")
+        .arg("mv")
+        .arg(temp_service_path)
+        .arg("/etc/systemd/system/clash.service")
+        .status()?;
+        
+    if !status.success() {
+        return Err(anyhow!("安装服务文件失败"));
+    }
+    
+    // 重载 daemon 并启用服务
+    Command::new("sudo").arg("systemctl").arg("daemon-reload").status()?;
+    Command::new("sudo").arg("systemctl").arg("enable").arg("clash").status()?;
+    
+    Ok(())
+}
+
+/// 卸载命令
+pub async fn uninstall() -> Result<()> {
+    println!("{}...", "正在卸载".red());
+    
+    // 停止并禁用服务
+    Command::new("sudo").arg("systemctl").arg("stop").arg("clash").status().ok();
+    Command::new("sudo").arg("systemctl").arg("disable").arg("clash").status().ok();
+    
+    // 删除服务文件
+    Command::new("sudo").arg("rm").arg("/etc/systemd/system/clash.service").status().ok();
+    Command::new("sudo").arg("systemctl").arg("daemon-reload").status().ok();
+    
+    // 删除二进制文件
+    Command::new("sudo").arg("rm").arg("/usr/local/bin/clash").status().ok();
+    
+    println!("{}", "Clash 已卸载。".green());
+    Ok(())
+}
