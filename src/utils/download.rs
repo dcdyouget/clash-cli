@@ -10,7 +10,13 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 /// 下载文件并显示进度条
 pub async fn download_file(url: &str, target_path: &Path) -> Result<()> {
-    let client = Client::new();
+    // 使用自定义 User-Agent 模拟 Clash 客户端
+    // 许多订阅服务会根据 UA 返回不同的格式 (Base64 vs YAML)
+    let client = Client::builder()
+        .user_agent("Clash/1.18.0 clash-cli/0.1.0")
+        .build()
+        .context("Failed to build HTTP client")?;
+        
     let res = client.get(url).send().await.context("Failed to send request")?;
     let total_size = res.content_length().unwrap_or(0);
 
