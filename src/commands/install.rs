@@ -9,6 +9,11 @@ use dialoguer::{Confirm, theme::ColorfulTheme};
 const MIHOMO_VERSION: &str = "v1.17.0";
 const DOWNLOAD_BASE_URL: &str = "https://github.com/MetaCubeX/mihomo/releases/download";
 
+// 使用 jsdelivr CDN 加速下载数据库文件
+const MMDB_DOWNLOAD_URL: &str = "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/country.mmdb";
+const GEOSITE_DOWNLOAD_URL: &str = "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat";
+const GEOIP_DOWNLOAD_URL: &str = "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat";
+
 /// 安装命令主入口
 /// 
 /// 负责下载、解压、移动二进制文件，并配置 systemd 服务
@@ -60,6 +65,30 @@ pub async fn run(version: Option<String>, file: Option<String>) -> Result<()> {
     // 创建配置目录 /etc/clash
     create_config_dir("/etc/clash")?;
 
+    // 下载必要的数据库文件 (MMDB/GeoSite/GeoIP)
+    println!("正在下载 IP 数据库文件 (Country.mmdb, GeoSite, GeoIP) via CDN...");
+    
+    let mmdb_path = temp_dir.path().join("Country.mmdb");
+    if let Err(e) = download::download_file(MMDB_DOWNLOAD_URL, &mmdb_path).await {
+         println!("{} {}", "警告: 下载 Country.mmdb 失败:".yellow(), e);
+    } else {
+        move_file_to_config_dir(&mmdb_path, "Country.mmdb")?;
+    }
+    
+    let geosite_path = temp_dir.path().join("geosite.dat");
+    if let Err(e) = download::download_file(GEOSITE_DOWNLOAD_URL, &geosite_path).await {
+         println!("{} {}", "警告: 下载 geosite.dat 失败:".yellow(), e);
+    } else {
+        move_file_to_config_dir(&geosite_path, "geosite.dat")?;
+    }
+
+    let geoip_path = temp_dir.path().join("geoip.dat");
+    if let Err(e) = download::download_file(GEOIP_DOWNLOAD_URL, &geoip_path).await {
+         println!("{} {}", "警告: 下载 geoip.dat 失败:".yellow(), e);
+    } else {
+        move_file_to_config_dir(&geoip_path, "geoip.dat")?;
+    }
+
     // 创建默认配置文件 (HTTP 模式)
     create_default_config("/etc/clash/config.yaml")?;
 
@@ -71,6 +100,21 @@ pub async fn run(version: Option<String>, file: Option<String>) -> Result<()> {
     }
 
     println!("{}", "Clash 安装成功!".green().bold());
+    Ok(())
+}
+
+/// 移动文件到配置目录
+fn move_file_to_config_dir(source: &Path, filename: &str) -> Result<()> {
+    let target = format!("/etc/clash/{}", filename);
+    let status = Command::new("sudo")
+        .arg("cp")
+        .arg(source)
+        .arg(&target)
+        .status()?;
+    
+    if !status.success() {
+        return Err(anyhow!("移动文件 {} 失败", filename));
+    }
     Ok(())
 }
 

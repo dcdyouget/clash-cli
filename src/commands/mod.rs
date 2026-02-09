@@ -5,3 +5,4 @@ pub mod policy;
 pub mod tun;
 pub mod proxy;
 pub mod check;
+pub mod status;

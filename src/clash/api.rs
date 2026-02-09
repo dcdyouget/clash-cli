@@ -107,6 +107,8 @@ struct DelayResponse {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     pub port: Option<u16>,
+    #[serde(rename = "mixed-port")]
+    pub mixed_port: Option<u16>,
     /// 运行模式: Global, Rule, Direct
     pub mode: String, 
     #[serde(rename = "log-level")]

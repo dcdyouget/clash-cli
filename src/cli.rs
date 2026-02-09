@@ -57,6 +57,9 @@ pub enum Commands {
         #[command(subcommand)]
         action: ProxyAction,
     },
+
+    /// 查看 Clash 运行状态
+    Status,
 }
 
 #[derive(Subcommand)]

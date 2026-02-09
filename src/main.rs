@@ -45,6 +45,10 @@ async fn main() -> anyhow::Result<()> {
             // 服务控制命令
             commands::proxy::run(action).await?;
         }
+        Commands::Status => {
+            // 状态查看命令
+            commands::status::run().await?;
+        }
     }
 
     Ok(())
