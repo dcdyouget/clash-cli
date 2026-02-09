@@ -2,11 +2,6 @@ use anyhow::Result;
 use colored::*;
 use crate::clash::api::ClashClient;
 use std::process::Command;
-use std::fs;
-use std::path::Path;
-
-const CONFIG_DIR: &str = "/etc/clash";
-const ACTIVE_CONFIG: &str = "config.yaml";
 
 /// 显示 Clash 状态
 pub async fn run() -> Result<()> {
@@ -15,47 +10,91 @@ pub async fn run() -> Result<()> {
     // 1. 检查 Systemd 服务状态
     check_service_status();
 
-    // 2. 检查当前配置文件
-    check_active_config();
-
-    // 3. 尝试连接 API 获取实时信息
+    // 2. 尝试连接 API 获取实时信息
     let client = ClashClient::new();
 
-    // 获取并显示模式 (Global/Rule/Direct)
+    // 获取并显示模式
     match client.get_config().await {
         Ok(config) => {
-            println!("- {}: {}", "路由模式".bold(), config.mode.green());
-            if let Some(port) = config.port {
-                println!("- {}: {}", "HTTP 端口".bold(), port);
-            }
-            if let Some(mixed) = config.mixed_port {
-                println!("- {}: {}", "混合端口".bold(), mixed);
-            }
+            // 判断是否为 Tun 模式
+            let tun_status = if let Some(tun) = config.tun {
+                if tun.enable { "TUN 模式".green() } else { "HTTP 代理模式".yellow() }
+            } else {
+                "HTTP 代理模式".yellow()
+            };
+            println!("- {}: {}", "运行模式".bold(), tun_status);
+            
+            // 显示策略模式 (Global/Rule/Direct)
+            println!("- {}: {}", "策略模式".bold(), config.mode.green());
         },
         Err(_) => {
             println!("- {}: {}", "API 连接".bold(), "失败 (Clash 可能未运行)".red());
         }
     }
 
-    // 获取并显示当前节点
-    // 这里我们尝试获取所有的 proxies，并找出当前选中的
-    // 由于 Clash API 比较复杂，这里简化处理，只显示 GLOBAL 组的选中项
-    // 或者显示特定策略组的状态
-    if let Ok(proxies) = client.get_proxies().await {
-        // 尝试查找常见的策略组名称
-        let group_names = vec!["GLOBAL", "Proxy", "PROXY", "Select", "节点选择"];
-        let mut found = false;
-        for name in group_names {
-            if let Some(proxy) = proxies.get(name) {
-                if let Some(now) = &proxy.now {
-                    println!("- {}: {} -> {}", "当前节点".bold(), name, now.green());
-                    found = true;
-                    break;
-                }
-            }
+    // 获取并显示当前流量
+    match client.get_traffic().await {
+        Ok(traffic) => {
+            println!("- {}: {}", "上传速度".bold(), format_speed(traffic.up).green());
+            println!("- {}: {}", "下载速度".bold(), format_speed(traffic.down).green());
+        },
+        Err(_) => {
+             // 流量获取失败通常不致命，可能暂时忽略
         }
-        if !found {
-                println!("- {}: {}", "当前节点".bold(), "未找到主要策略组".yellow());
+    }
+
+    // 获取连接数
+    if let Ok(count) = client.get_connection_count().await {
+        println!("- {}: {}", "当前连接".bold(), count.to_string().cyan());
+    }
+
+    // 获取版本
+    if let Ok(version) = client.get_version().await {
+        println!("- {}: {}", "内核版本".bold(), version.version.blue());
+    }
+
+    // 获取内存占用
+    if let Some(mem) = get_memory_usage() {
+        println!("- {}: {}", "内存占用".bold(), mem.yellow());
+    }
+
+    // 4. 显示代理组选择与延迟
+    if let Ok(proxies) = client.get_proxies().await {
+        println!("\n{}", "=== 代理组状态 ===".cyan().bold());
+        
+        let mut groups: Vec<_> = proxies.iter()
+            .filter(|(_, p)| p.proxy_type == "Selector" || p.proxy_type == "URLTest")
+            .collect();
+        
+        // 简单排序，把 GLOBAL 放在最前面
+        groups.sort_by(|(name_a, _), (name_b, _)| {
+            if *name_a == "GLOBAL" { std::cmp::Ordering::Less }
+            else if *name_b == "GLOBAL" { std::cmp::Ordering::Greater }
+            else { name_a.cmp(name_b) }
+        });
+
+        for (name, group) in groups {
+            if let Some(now) = &group.now {
+                let delay_str = if let Some(node) = proxies.get(now) {
+                    if let Some(history) = &node.history {
+                        if let Some(last) = history.last() {
+                            if last.delay == 0 {
+                                "无数据".red().to_string()
+                            } else {
+                                format!("{} ms", last.delay).green().to_string()
+                            }
+                        } else {
+                            "无数据".red().to_string()
+                        }
+                    } else {
+                        "无数据".red().to_string()
+                    }
+                } else {
+                    "未知".dimmed().to_string()
+                };
+
+                println!("- {}: {} ({})", name.bold(), now.cyan(), delay_str);
+            }
         }
     }
 
@@ -96,21 +135,42 @@ fn check_service_status() {
     }
 }
 
-fn check_active_config() {
-    let config_path = Path::new(CONFIG_DIR).join(ACTIVE_CONFIG);
-    if config_path.exists() {
-        // 尝试读取它是否是一个软链接，或者直接读取内容摘要
-        // 这里简单地列出 config.yaml 的实际指向（如果是软链）或大小
-        if let Ok(metadata) = fs::symlink_metadata(&config_path) {
-            if metadata.file_type().is_symlink() {
-                 if let Ok(target) = fs::read_link(&config_path) {
-                     println!("- {}: {} -> {}", "配置文件".bold(), ACTIVE_CONFIG, target.display().to_string().blue());
-                 }
-            } else {
-                 println!("- {}: {} (普通文件, {} bytes)", "配置文件".bold(), ACTIVE_CONFIG, metadata.len());
-            }
-        }
+fn format_speed(speed: u64) -> String {
+    if speed < 1024 {
+        format!("{} B/s", speed)
+    } else if speed < 1024 * 1024 {
+        format!("{:.2} KB/s", speed as f64 / 1024.0)
     } else {
-        println!("- {}: {}", "配置文件".bold(), "未找到".red());
+        format!("{:.2} MB/s", speed as f64 / 1024.0 / 1024.0)
     }
+}
+
+fn get_memory_usage() -> Option<String> {
+    // 1. 获取 PID
+    let output = Command::new("pgrep")
+        .arg("-x")
+        .arg("clash")
+        .output()
+        .ok()?;
+    
+    let pid_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if pid_str.is_empty() {
+        return None;
+    }
+
+    // 2. 获取 RSS 内存 (KB)
+    let output = Command::new("ps")
+        .arg("-o")
+        .arg("rss=")
+        .arg("-p")
+        .arg(&pid_str)
+        .output()
+        .ok()?;
+
+    let rss_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if let Ok(rss_kb) = rss_str.parse::<u64>() {
+        let rss_mb = rss_kb as f64 / 1024.0;
+        return Some(format!("{:.1} MB", rss_mb));
+    }
+    None
 }

@@ -69,6 +69,54 @@ impl ClashClient {
          let resp: DelayResponse = self.client.get(&url).send().await?.json().await?;
          Ok(resp.delay)
     }
+
+    /// 获取当前流量信息 (快照)
+    pub async fn get_traffic(&self) -> Result<Traffic> {
+        let url = format!("{}/traffic", self.base_url);
+        let mut response = self.client.get(&url).send().await?;
+        
+        // 读取第一个数据包
+        if let Some(chunk) = response.chunk().await? {
+            let s = String::from_utf8_lossy(&chunk);
+            // Clash 返回的数据可能是 "{"up":0,"down":0}\n"
+            // 我们只需要解析第一行 JSON
+            if let Some(line) = s.lines().next() {
+                let traffic: Traffic = serde_json::from_str(line)?;
+                return Ok(traffic);
+            }
+        }
+        Err(anyhow::anyhow!("No traffic data received"))
+    }
+
+    /// 获取版本信息
+    pub async fn get_version(&self) -> Result<Version> {
+        let url = format!("{}/version", self.base_url);
+        let version: Version = self.client.get(&url).send().await?.json().await?;
+        Ok(version)
+    }
+
+    /// 获取当前活跃连接数
+    pub async fn get_connection_count(&self) -> Result<usize> {
+        let url = format!("{}/connections", self.base_url);
+        let resp: ConnectionsResponse = self.client.get(&url).send().await?.json().await?;
+        Ok(resp.connections.len())
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Version {
+    pub version: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ConnectionsResponse {
+    connections: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Traffic {
+    pub up: u64,
+    pub down: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -113,4 +161,10 @@ pub struct Config {
     pub mode: String, 
     #[serde(rename = "log-level")]
     pub log_level: Option<String>,
+    pub tun: Option<TunConfig>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TunConfig {
+    pub enable: bool,
 }
