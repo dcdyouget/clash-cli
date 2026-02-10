@@ -6,3 +6,4 @@ pub mod tun;
 pub mod proxy;
 pub mod check;
 pub mod status;
+pub mod dashboard;

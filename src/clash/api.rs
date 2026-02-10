@@ -101,6 +101,18 @@ impl ClashClient {
         let resp: ConnectionsResponse = self.client.get(&url).send().await?.json().await?;
         Ok(resp.connections.len())
     }
+
+    /// 获取流量流 (Streaming Response)
+    pub async fn stream_traffic(&self) -> Result<reqwest::Response> {
+        let url = format!("{}/traffic", self.base_url);
+        Ok(self.client.get(&url).send().await?)
+    }
+
+    /// 获取日志流 (Streaming Response)
+    pub async fn stream_logs(&self) -> Result<reqwest::Response> {
+        let url = format!("{}/logs?level=info", self.base_url);
+        Ok(self.client.get(&url).send().await?)
+    }
 }
 
 #[derive(Debug, Deserialize)]

@@ -32,8 +32,18 @@ async fn set_inbound(mode: InboundMode) -> Result<()> {
 
     let mut doc: serde_yaml::Value = serde_yaml::from_str(&content).context("解析配置文件失败")?;
     
+    // 检查当前状态，避免不必要的重启
+    let is_tun_enabled = doc.get("tun")
+        .and_then(|v| v.get("enable"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
     match mode {
         InboundMode::Tun => {
+            if is_tun_enabled {
+                println!("{}", "当前配置已经是 Tun 模式，无需切换。".yellow());
+                return Ok(());
+            }
             // 启用 Tun 模式
             if let Some(tun) = doc.get_mut("tun") {
                 if let Some(enable) = tun.get_mut("enable") {
@@ -56,6 +66,12 @@ async fn set_inbound(mode: InboundMode) -> Result<()> {
             println!("已在配置中启用 Tun 模式。");
         },
         InboundMode::Http => {
+             if !is_tun_enabled {
+                 println!("{}", "当前配置已经是 HTTP 模式，无需切换。".yellow());
+                 println!("{}", "要在终端中使用代理，请导出以下环境变量：".yellow());
+                 println!("export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890 all_proxy=socks5://127.0.0.1:7890");
+                 return Ok(());
+             }
              // 禁用 Tun
              disable_tun(&mut doc);
              println!("已禁用 Tun 模式。");

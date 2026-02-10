@@ -98,24 +98,6 @@ pub async fn run() -> Result<()> {
         }
     }
 
-    // 4. 显示最近日志
-    println!("\n{}", "=== 最近日志 (最后 10 行) ===".cyan().bold());
-    let output = Command::new("journalctl")
-        .arg("-u")
-        .arg("clash")
-        .arg("-n")
-        .arg("10")
-        .arg("--no-pager")
-        .output();
-
-    match output {
-        Ok(o) => {
-            let log = String::from_utf8_lossy(&o.stdout);
-            println!("{}", log);
-        },
-        Err(_) => println!("{}", "无法读取日志".red()),
-    }
-
     Ok(())
 }
 

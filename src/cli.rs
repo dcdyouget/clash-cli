@@ -60,6 +60,9 @@ pub enum Commands {
 
     /// 查看 Clash 运行状态
     Status,
+
+    /// 启动交互式监控面板
+    Dashboard,
 }
 
 #[derive(Subcommand)]

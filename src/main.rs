@@ -49,6 +49,10 @@ async fn main() -> anyhow::Result<()> {
             // 状态查看命令
             commands::status::run().await?;
         }
+        Commands::Dashboard => {
+            // 启动交互式监控面板
+            commands::dashboard::run().await?;
+        }
     }
 
     Ok(())
