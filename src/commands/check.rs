@@ -1,13 +1,13 @@
 use anyhow::{Result, Context};
-use crate::clash::api::ClashClient;
+use crate::mihomo::api::MihomoClient;
 use colored::*;
 
 /// 状态检测命令入口
 /// 
 /// 检测所有 Selector 类型的代理组当前选中节点的延迟
 pub async fn run() -> Result<()> {
-    let client = ClashClient::new();
-    let proxies = client.get_proxies().await.context("无法连接到 Clash API。Clash 是否正在运行？")?;
+    let client = MihomoClient::new();
+    let proxies = client.get_proxies().await.context("无法连接到 Mihomo API。Mihomo 是否正在运行？")?;
     
     let mut groups: Vec<&String> = proxies.iter()
         .filter(|(_, p)| p.proxy_type == "Selector")

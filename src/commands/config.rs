@@ -7,7 +7,7 @@ use colored::*;
 use dialoguer::{Select, theme::ColorfulTheme};
 use std::process::Command;
 
-const CONFIG_DIR: &str = "/etc/clash";
+const CONFIG_DIR: &str = "/etc/mihomo";
 const ACTIVE_CONFIG: &str = "config.yaml";
 
 /// 配置管理命令入口
@@ -57,10 +57,10 @@ async fn add_config(url: String, name: Option<String>) -> Result<()> {
     
     // 验证配置文件格式
     if let Err(e) = validate_config_file(&temp_path) {
-        return Err(anyhow!("配置文件校验失败: {}\n提示: 请确保订阅链接是 Clash 格式 (通常包含 &flag=clash)", e));
+        return Err(anyhow!("配置文件校验失败: {}\n提示: 请确保订阅链接是 Mihomo 格式 (通常包含 &flag=clash 或类似标志)", e));
     }
     
-    // 移动到配置目录 /etc/clash/
+    // 移动到配置目录 /etc/mihomo/
     let target_path = Path::new(CONFIG_DIR).join(&filename);
     println!("正在安装到 {}...", target_path.display());
     
@@ -134,12 +134,12 @@ fn validate_config_file(path: &Path) -> Result<()> {
     
     // 1. Base64 格式 (无空格，长字符串)
     if trimmed.len() > 50 && !trimmed.contains(' ') && !trimmed.contains('\n') {
-        return Err(anyhow!("检测到 Base64 编码的内容。这是通用的订阅格式，不是 Clash 配置文件。"));
+        return Err(anyhow!("检测到 Base64 编码的内容。这是通用的订阅格式，不是 Mihomo 配置文件。"));
     }
     
     // 2. 直接的节点列表 (包含 trojan://, ss://, vmess:// 等)
     if content.contains("trojan://") || content.contains("ss://") || content.contains("vmess://") || content.contains("vless://") {
-        return Err(anyhow!("检测到原始节点列表。Clash 需要 YAML 格式的配置文件。"));
+        return Err(anyhow!("检测到原始节点列表。Mihomo 需要 YAML 格式的配置文件。"));
     }
 
     // 3. HTML 内容 (可能是下载到了登录页或验证页)
@@ -147,7 +147,7 @@ fn validate_config_file(path: &Path) -> Result<()> {
         return Err(anyhow!("下载的内容似乎是 HTML 页面。可能是订阅链接失效或需要网页验证。"));
     }
 
-    Err(anyhow!("文件不是有效的 Clash YAML 配置文件。"))
+    Err(anyhow!("文件不是有效的 Mihomo YAML 配置文件。"))
 }
 
 /// 列出可用配置
@@ -156,7 +156,7 @@ fn list_configs() -> Result<Vec<String>> {
     
     // 检查目录是否存在
     if !Path::new(CONFIG_DIR).exists() {
-        println!("配置目录 {} 不存在。请先安装 Clash。", CONFIG_DIR);
+        println!("配置目录 {} 不存在。请先安装 Mihomo。", CONFIG_DIR);
         return Ok(configs);
     }
 
@@ -214,8 +214,8 @@ fn select_config() -> Result<()> {
         return Err(anyhow!("切换配置失败"));
     }
     
-    println!("正在重启 Clash 服务...");
-    Command::new("sudo").arg("systemctl").arg("restart").arg("clash").status()?;
+    println!("正在重启 Mihomo 服务...");
+    Command::new("sudo").arg("systemctl").arg("restart").arg("mihomo").status()?;
     
     println!("{}", "配置已切换并重启服务。".green());
     Ok(())
@@ -238,8 +238,8 @@ fn apply_config(config_name: &str) -> Result<()> {
         return Err(anyhow!("切换配置失败"));
     }
     
-    println!("正在重启 Clash 服务...");
-    Command::new("sudo").arg("systemctl").arg("restart").arg("clash").status()?;
+    println!("正在重启 Mihomo 服务...");
+    Command::new("sudo").arg("systemctl").arg("restart").arg("mihomo").status()?;
     
     println!("{}", "配置已应用并重启服务。".green());
     Ok(())

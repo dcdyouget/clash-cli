@@ -4,7 +4,7 @@ use std::fs;
 use std::process::Command;
 use colored::*;
 
-const CONFIG_FILE: &str = "/etc/clash/config.yaml";
+const CONFIG_FILE: &str = "/etc/mihomo/config.yaml";
 
 /// 入站模式管理命令入口
 pub async fn run(mode: InboundMode) -> Result<()> {
@@ -17,7 +17,7 @@ pub async fn run(mode: InboundMode) -> Result<()> {
 async fn set_inbound(mode: InboundMode) -> Result<()> {
     // 检查配置文件是否存在
     if fs::metadata(CONFIG_FILE).is_err() {
-        println!("在 {} 未找到配置文件。Clash 是否已安装并配置？", CONFIG_FILE);
+        println!("在 {} 未找到配置文件。Mihomo 是否已安装并配置？", CONFIG_FILE);
         return Ok(());
     }
     
@@ -83,7 +83,7 @@ async fn set_inbound(mode: InboundMode) -> Result<()> {
     
     // 写回配置文件
     let new_content = serde_yaml::to_string(&doc)?;
-    let temp_path = "/tmp/clash_config_update.yaml";
+    let temp_path = "/tmp/mihomo_config_update.yaml";
     fs::write(temp_path, new_content)?;
     
     let status = Command::new("sudo")
@@ -96,8 +96,8 @@ async fn set_inbound(mode: InboundMode) -> Result<()> {
         return Err(anyhow::anyhow!("更新配置文件失败"));
     }
     
-    println!("正在重启 Clash...");
-    Command::new("sudo").arg("systemctl").arg("restart").arg("clash").status()?;
+    println!("正在重启 Mihomo...");
+    Command::new("sudo").arg("systemctl").arg("restart").arg("mihomo").status()?;
     
     Ok(())
 }

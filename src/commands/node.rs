@@ -1,5 +1,5 @@
 use anyhow::{Result, Context};
-use crate::clash::api::ClashClient;
+use crate::mihomo::api::MihomoClient;
 use dialoguer::{Select, theme::ColorfulTheme};
 use colored::*;
 
@@ -7,9 +7,9 @@ use colored::*;
 ///
 /// 负责获取代理组列表，并进行交互式节点选择
 pub async fn run(_select: bool) -> Result<()> {
-    let client = ClashClient::new();
+    let client = MihomoClient::new();
     // 获取所有代理信息
-    let proxies = client.get_proxies().await.context("连接 Clash API 失败。Clash 是否正在运行？")?;
+    let proxies = client.get_proxies().await.context("连接 Mihomo API 失败。Mihomo 是否正在运行？")?;
 
     // 筛选出类型为 "Selector" 的代理组
     let mut groups: Vec<&String> = proxies.iter()

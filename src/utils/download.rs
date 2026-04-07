@@ -10,10 +10,10 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 /// 下载文件并显示进度条
 pub async fn download_file(url: &str, target_path: &Path) -> Result<()> {
-    // 使用自定义 User-Agent 模拟 Clash 客户端
+    // 使用自定义 User-Agent 模拟 Mihomo 客户端
     // 许多订阅服务会根据 UA 返回不同的格式 (Base64 vs YAML)
     let client = Client::builder()
-        .user_agent("Clash/1.18.0 clash-cli/0.1.0")
+        .user_agent("Clash/1.18.0 mihomo-cli/0.1.0")
         .build()
         .context("Failed to build HTTP client")?;
         

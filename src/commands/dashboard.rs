@@ -14,7 +14,7 @@ use ratatui::{
 };
 use std::{io, time::Duration};
 use tokio::sync::mpsc;
-use crate::clash::api::{ClashClient, Traffic};
+use crate::mihomo::api::{MihomoClient, Traffic};
 use futures_util::StreamExt;
 
 #[derive(Debug)]
@@ -119,9 +119,9 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
     });
 
     // Traffic stream
-    let client = ClashClient::new();
+    let client = MihomoClient::new();
     let tx_traffic = tx.clone();
-    let client_clone = ClashClient::new();
+    let client_clone = MihomoClient::new();
     tokio::spawn(async move {
         if let Ok(mut response) = client_clone.stream_traffic().await {
             while let Some(chunk) = response.chunk().await.unwrap_or(None) {
@@ -139,7 +139,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
 
     // Log stream
     let tx_log = tx.clone();
-    let client_clone2 = ClashClient::new();
+    let client_clone2 = MihomoClient::new();
     tokio::spawn(async move {
          if let Ok(mut response) = client_clone2.stream_logs().await {
             while let Some(chunk) = response.chunk().await.unwrap_or(None) {
@@ -160,7 +160,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
 
     // Proxies poller (every 2s)
     let tx_proxies = tx.clone();
-    let client_clone3 = ClashClient::new();
+    let client_clone3 = MihomoClient::new();
     tokio::spawn(async move {
         loop {
             if let Ok(proxies) = client_clone3.get_proxies().await {

@@ -5,15 +5,15 @@ use std::collections::HashMap;
 
 const DEFAULT_API_URL: &str = "http://127.0.0.1:9090";
 
-/// Clash API 客户端
+/// Mihomo API 客户端
 ///
-/// 用于与 Clash 外部控制 API 进行交互
-pub struct ClashClient {
+/// 用于与 Mihomo 外部控制 API 进行交互
+pub struct MihomoClient {
     client: Client,
     base_url: String,
 }
 
-impl ClashClient {
+impl MihomoClient {
     /// 创建一个新的 API 客户端实例
     pub fn new() -> Self {
         Self {
@@ -48,7 +48,7 @@ impl ClashClient {
         Ok(config)
     }
 
-    /// 更新 Clash 配置 (如切换模式)
+    /// 更新 Mihomo 配置 (如切换模式)
     pub async fn update_config(&self, payload: &serde_json::Value) -> Result<()> {
         let url = format!("{}/configs", self.base_url);
         let resp = self.client.patch(&url).json(payload).send().await?;
@@ -78,7 +78,7 @@ impl ClashClient {
         // 读取第一个数据包
         if let Some(chunk) = response.chunk().await? {
             let s = String::from_utf8_lossy(&chunk);
-            // Clash 返回的数据可能是 "{"up":0,"down":0}\n"
+            // Mihomo 返回的数据可能是 "{"up":0,"down":0}\n"
             // 我们只需要解析第一行 JSON
             if let Some(line) = s.lines().next() {
                 let traffic: Traffic = serde_json::from_str(line)?;
@@ -163,7 +163,7 @@ struct DelayResponse {
     delay: u64,
 }
 
-/// Clash 配置结构
+/// Mihomo 配置结构
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     pub port: Option<u16>,

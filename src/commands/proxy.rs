@@ -22,17 +22,17 @@ fn service_control(action: &str) -> Result<()> {
         _ => action,
     };
     
-    println!("正在{} Clash 服务...", action_cn);
+    println!("正在{} Mihomo 服务...", action_cn);
     let status = Command::new("sudo")
         .arg("systemctl")
         .arg(action)
-        .arg("clash")
+        .arg("mihomo")
         .status()?;
         
     if status.success() {
-        println!("Clash 服务{}成功。", action_cn);
+        println!("Mihomo 服务{}成功。", action_cn);
     } else {
-        println!("Clash 服务{}失败。", action_cn);
+        println!("Mihomo 服务{}失败。", action_cn);
     }
     Ok(())
 }
@@ -41,7 +41,7 @@ fn service_control(action: &str) -> Result<()> {
 fn service_status() -> Result<()> {
     let _ = Command::new("systemctl")
         .arg("status")
-        .arg("clash")
+        .arg("mihomo")
         .status()?;
     Ok(())
 }

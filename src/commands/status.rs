@@ -1,17 +1,17 @@
 use anyhow::Result;
 use colored::*;
-use crate::clash::api::ClashClient;
+use crate::mihomo::api::MihomoClient;
 use std::process::Command;
 
-/// 显示 Clash 状态
+/// 显示 Mihomo 状态
 pub async fn run() -> Result<()> {
-    println!("{}", "=== Clash 状态概览 ===".cyan().bold());
+    println!("{}", "=== Mihomo 状态概览 ===".cyan().bold());
 
     // 1. 检查 Systemd 服务状态
     check_service_status();
 
     // 2. 尝试连接 API 获取实时信息
-    let client = ClashClient::new();
+    let client = MihomoClient::new();
 
     // 获取并显示模式
     match client.get_config().await {
@@ -28,7 +28,7 @@ pub async fn run() -> Result<()> {
             println!("- {}: {}", "策略模式".bold(), config.mode.green());
         },
         Err(_) => {
-            println!("- {}: {}", "API 连接".bold(), "失败 (Clash 可能未运行)".red());
+            println!("- {}: {}", "API 连接".bold(), "失败 (Mihomo 可能未运行)".red());
         }
     }
 
@@ -104,7 +104,7 @@ pub async fn run() -> Result<()> {
 fn check_service_status() {
     let output = Command::new("systemctl")
         .arg("is-active")
-        .arg("clash")
+        .arg("mihomo")
         .output();
     
     match output {
@@ -131,7 +131,7 @@ fn get_memory_usage() -> Option<String> {
     // 1. 获取 PID
     let output = Command::new("pgrep")
         .arg("-x")
-        .arg("clash")
+        .arg("mihomo")
         .output()
         .ok()?;
     

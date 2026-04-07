@@ -1,7 +1,7 @@
 mod cli;
 mod commands;
 mod utils;
-mod clash;
+mod mihomo;
 
 use clap::Parser;
 use cli::{Cli, Commands};

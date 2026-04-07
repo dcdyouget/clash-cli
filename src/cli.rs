@@ -2,8 +2,8 @@ use clap::{Parser, Subcommand, ValueEnum};
 use std::fmt;
 
 #[derive(Parser)]
-#[command(name = "clash-cli")]
-#[command(about = "Clash 管理命令行工具", long_about = None)]
+#[command(name = "mihomo-cli")]
+#[command(about = "Mihomo 管理命令行工具", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -11,7 +11,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// 安装 Clash 并注册为系统服务
+    /// 安装 Mihomo 并注册为系统服务
     Install {
         /// 安装版本 (默认: latest)
         #[arg(short, long)]
@@ -21,7 +21,7 @@ pub enum Commands {
         #[arg(short, long)]
         file: Option<String>,
     },
-    /// 卸载 Clash 服务和二进制文件
+    /// 卸载 Mihomo 服务和二进制文件
     Uninstall,
     
     /// 管理配置文件
@@ -58,7 +58,7 @@ pub enum Commands {
         action: ProxyAction,
     },
 
-    /// 查看 Clash 运行状态
+    /// 查看 Mihomo 运行状态
     Status,
 
     /// 启动交互式监控面板
